@@ -8,7 +8,10 @@ export type Tokens = {
 export type Totals = {
   main: Tokens
   sub: Tokens
+  // API-equivalent cost of the tokens whose model has known rates.
   usd: number
+  // Tokens from models with no known rates, which `usd` leaves out.
+  unpriced: number
   turns: number
 }
 
@@ -21,6 +24,8 @@ declare module 'claude-code' {
       project: Totals
       all: Totals
       tab: Tab
+      // Whether the box above the prompt is shown.
+      isOpen: boolean
     }
   }
 }

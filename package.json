@@ -4,9 +4,20 @@
   "description": "Setup kit for Claude Code: lean, right-sized config and a token dashboard mod",
   "license": "MIT",
   "type": "module",
-  "bin": { "tuneup": "dist/installer/bin.js" },
-  "files": ["dist", "catalog", "profiles", "templates", "plugins", ".claude-plugin"],
-  "engines": { "node": ">=20" },
+  "bin": {
+    "tuneup": "dist/installer/bin.js"
+  },
+  "files": [
+    "dist",
+    "catalog",
+    "profiles",
+    "templates",
+    "plugins",
+    ".claude-plugin"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p plugins/tuneup-dashboard",
@@ -19,5 +30,13 @@
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shloksrivastava2509/Tuneup.git"
+  },
+  "homepage": "https://github.com/shloksrivastava2509/Tuneup#readme",
+  "bugs": {
+    "url": "https://github.com/shloksrivastava2509/Tuneup/issues"
   }
 }

@@ -13,7 +13,7 @@ flowchart LR
     PL --> M[Dashboard mod]
     PL --> H[Settings hooks · skills · subagents]
     M -->|turn.step / turn.complete / Notification| S[($.store per project)]
-    S --> V[/tokens pane · context band · receipts · toasts/]
+    S --> V[/tokens box · context band · receipts · toasts/]
 ```
 
 ## 1. Installer
@@ -73,6 +73,7 @@ plugins/tuneup-dashboard/
 ├── hooks/hooks.json             # { "modules": ["./register.tsx"] }, loaded as-is, no build step
 ├── hooks/register.tsx           # hook wiring
 ├── hooks/totals.ts · format.ts  # pure helpers
+├── hooks/rates.ts               # API list prices per model, with the date they were checked
 ├── types/index.d.ts             # $.state declarations
 └── tests/*.test.ts              # claude plugin test
 ```
@@ -83,39 +84,46 @@ plugins/tuneup-dashboard/
 | --- | --- |
 | `session.start` | Register `/tokens` command, load saved totals (a `$.state` write redraws its readers, so no timer) |
 | `classic.SessionStart` (`clear`, `resume`, `fork`) | Reload totals into `$.state` after resets |
-| `turn.step` | Async generator hook. Read `result.usage` (`input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`; may be `null`) per request; split by `e.agentId` |
-| `turn.complete` | `durationMs` and `usage` for the turn receipt, returned as `{ text }` (shown under the answer, not recorded in the transcript). Also fires for subagent runs: no receipt when `e.agentId` is set. Saves to `$.store` |
-| `session.measure` | Session cost from Claude Code's own ledger (`cost.usd`); the increase since the last reading is added to the project and day totals |
+| `turn.step` | Async generator hook. Price each request from `hooks/rates.ts` by `result.usage.model`. Read `result.usage` (`input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`; may be `null`) per request; split by `e.agentId` |
+| `turn.complete` | `durationMs` for the turn receipt, with the tokens summed from that turn's own `turn.step` requests so the receipt and the box count the same thing, returned as `{ text }` (shown under the answer, not recorded in the transcript). Also fires for subagent runs: no receipt when `e.agentId` is set. Saves to `$.store` |
 | `session.end` | Save anything not yet written |
 | `classic.Notification` (`permission_prompt`, `idle_prompt`) | Start the "Claude waited for you" clock |
 | `prompt.submit` / `tool.check` resolving | Stop the waiting clock |
-| `command.run` (`tokens`) | Open the pane and return `{}`: a command's `text` is read by the model, so text is returned only where nothing can draw |
-| `ui.render` (`Pane`, `AbovePrompt`) | Draw sidebar and context band |
+| `command.run` (`tokens`) | Show or hide the box above the prompt and return `{}`: a command's `text` is read by the model, so text is returned only where nothing can draw |
+| `ui.render` (`AbovePrompt`) | Draw the token box in the band above the prompt, when `/tokens` has turned it on; pass to `next(e)` otherwise and while a survey holds the band |
 
 ### State
 
 | Where | What |
 | --- | --- |
 | Module variables | Usage not yet saved, waiting-clock start time |
-| `$.state` | Current session totals, loaded project and all-project totals, active tab (survive module reload, redraw automatically) |
+| `$.state` | Current session totals, loaded project and all-project totals, active tab, whether the box is shown (survive module reload, redraw automatically) |
 | `$.store` | Per-project totals and daily history, keyed `project:<path>` and `day:<project>:<yyyy-mm-dd>`, where the path is `$.session.root()` |
+
+Each session's totals are also saved under `session:<startedAt>`, where `startedAt` is `$.session.usage().startedAt`, and read back at `session.start` and on resume. The Desktop app resumes a conversation in a new process with a new session id (seen 2026-10-11: one chat, two transcript files), which empties `$.state`; the start time is the one value documented to carry over a resume and to start over on `/clear`. The newest 50 saved sessions are kept.
 
 Write each project/day under its own key and re-read before writing, because several sessions share one store.
 
 ### What the user sees
 
-- **`/tokens` pane** – tabs: This session · This project · All projects. Tokens by type, API-equivalent cost, subagent share.
+- **`/tokens` box** – a small bordered card above the prompt, shown and hidden by `/tokens`. Tabs: This session · This project · All projects. Four headline figures (total tokens, share from cache, API-equivalent cost, turns), then the breakdown by token type and the subagent share. The cache share is green from 50% and yellow below.
 - **Sparkline** – tokens per day, last 14 days (`Raster`, terminal only; text in Desktop).
 - **Context band** above the prompt – context bar and a `/compact` hint past a threshold.
-- **Turn receipt** – "Done in 42s · 18.4k tokens · 71% from cache".
+- **Turn receipt** – "✓ Done in 42s  ·  18.4k tokens  ·  71% from cache  ·  $0.12". The cost is left off when the model has no known rates.
 - **Toasts** – daily budget thresholds the user set.
 
 ### Constraints
 
 - Read-only: no network, no file writes outside `$.store`, never adds to Claude's context.
-- Open the pane only from `/tokens`; self-opened panes need ≥144 columns.
+- Show the box only when `/tokens` asks for it. It is drawn in the band above the prompt, not a pane, so it has no width floor; Claude Code adds its own collapse mark beside it.
 - VS Code chat panel and `claude -p` run hooks but don't draw; fall back to the status line and receipt text.
-- Dollar figures are labeled "API-equivalent"; subscriptions aren't billed per token.
+- **Turn receipt by surface** (checked 2026-10-11 on Claude Code 2.1.296):
+  - *Terminal:* the `{ text }` a `turn.complete` hook returns is drawn under the answer, next to the line that closes the turn.
+  - *Desktop app:* that text is not shown. This was observed in the Code tab; the docs don't state it. The API types give the likely reason: the turn-closing line (`TurnDuration`) is raised on the terminal only, and "a remote surface draws its own footer".
+  - *Fallback:* when `$.session.surfaces()` has `desktop` and no `terminal`, the mod sends the receipt with `$.ui.log`, a dim transcript line that is not sent to the model, and returns the answer unchanged. `turn.complete` has no `e.surface`, so the session's surfaces decide.
+- Each headline figure is a `Box` of fixed width. Never pad labels with spaces: the Desktop app's font is proportional.
+- Dollar figures are labeled "API-equivalent"; subscriptions aren't billed per token. They price all four token types from `hooks/rates.ts`, at the 5-minute cache write price. A model with no row there shows "—", and totals that mix priced and unpriced tokens are marked "(partial)".
+- "From cache" has one definition everywhere: `cache_read / (input + cache_read + cache_write)`.
 
 ## 4. Feature catalog
 
@@ -127,7 +135,7 @@ Write each project/day under its own key and re-read before writing, because sev
   "minVersion": "2.1.287",
   "profiles": ["*"],
   "install": { "plugin": "tuneup-dashboard@tuneup" },
-  "why": "Token sidebar and waiting timer inside Claude Code"
+  "why": "Token box and waiting timer inside Claude Code"
 }
 ```
 
@@ -169,7 +177,7 @@ tuneup/
 
 | Phase | Scope | Gate to next |
 | --- | --- | --- |
-| MVP | Dashboard mod (`/tokens` pane, turn receipts), installer with 2 profiles, backup/preview/undo | 10 testers use it for a week with no broken configs |
+| MVP | Dashboard mod (`/tokens` box, turn receipts), installer with 2 profiles, backup/preview/undo | 10 testers use it for a week with no broken configs |
 | v1 | Interview + 6 profiles, waiting timer, context band, sparkline, catalog + `update` | Catalog CI passes on the latest Claude Code release |
 | v2 | Team profiles, `report` with CSV export, community profile PRs, changelog bot | — |
 
