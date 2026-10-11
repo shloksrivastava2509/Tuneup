@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Written by Claude Code each time it loads the mod
+plugins/*/.claude-plugin/types/

@@ -1,0 +1,8 @@
+{
+  "id": "web-solo-budget",
+  "title": "Web, solo, lowest cost",
+  "match": { "stack": "web", "team": false, "priority": "cost" },
+  "features": ["dashboard-mod", "lean-claude-md", "safe-allow-rules"],
+  "settings": { "model": "sonnet", "effortLevel": "medium" },
+  "mcp": []
+}

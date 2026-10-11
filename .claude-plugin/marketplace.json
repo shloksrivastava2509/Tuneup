@@ -1,0 +1,14 @@
+{
+  "name": "tuneup",
+  "description": "Tuneup: lean Claude Code setup and a token dashboard mod",
+  "owner": {
+    "name": "Tuneup contributors"
+  },
+  "plugins": [
+    {
+      "name": "tuneup-dashboard",
+      "source": "./plugins/tuneup-dashboard",
+      "description": "Token usage per session and project, and turn receipts, inside Claude Code"
+    }
+  ]
+}

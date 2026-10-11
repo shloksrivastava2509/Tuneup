@@ -1,0 +1,8 @@
+{
+  "id": "web-solo-speed",
+  "title": "Web, solo, fastest results",
+  "match": { "stack": "web", "team": false, "priority": "speed" },
+  "features": ["dashboard-mod", "lean-claude-md", "safe-allow-rules"],
+  "settings": { "model": "opus", "effortLevel": "high" },
+  "mcp": []
+}
