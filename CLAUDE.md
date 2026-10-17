@@ -25,7 +25,7 @@ Design details live in `architecture.md`. Read it before changing structure.
 - Mod, headless smoke test (no model call): `claude -p --plugin-dir ./plugins/tuneup-dashboard "/tokens"`
 - Installer, tests: `npm test`
 - Installer, build: `npm run build` (output in `dist/`)
-- Installer, run locally: `node dist/installer/cli.js --dry-run` (set `TUNEUP_HOME` to a temp dir to keep backups out of `~/.tuneup`)
+- Installer, run locally: `node dist/installer/bin.js --dry-run` (set `TUNEUP_HOME` to a temp dir to keep backups out of `~/.tuneup`)
 - Type-check both: `npm run typecheck`. The mod half needs `plugins/tuneup-dashboard/.claude-plugin/types/`, which Claude Code writes the first time it loads the mod in an interactive session (it is git-ignored).
 - Validate the marketplace: `claude plugin validate .`
 
