@@ -1,8 +1,9 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { Elements, EngineInterface, Register, RenderInput } from 'claude-code'
 
 import type { Tab, Tokens, Totals } from '../types'
-import { card, receipt, summary } from './format'
+import type { ReceiptProps } from './receipt'
+import { card, receipt, summary, tailOf } from './format'
 import {
   NO_TOKENS,
   PROJECT,
@@ -22,6 +23,23 @@ import {
   zero,
 } from './totals'
 
+// The Token info mark: a small gold coin, drawn by the mod rather than taken from an emoji
+// font. The Desktop app draws it as an SVG; the terminal as a gold disc.
+const GOLD = '#E8B923'
+const COIN_GLYPH = '\u25C9'
+const COIN_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">' +
+  '<defs><radialGradient id="g" cx="35%" cy="30%" r="75%">' +
+  '<stop offset="0" stop-color="#FFF1A8"/><stop offset="0.55" stop-color="#E8B923"/><stop offset="1" stop-color="#A97C0F"/>' +
+  '</radialGradient></defs>' +
+  '<circle cx="8" cy="8" r="7.25" fill="url(#g)" stroke="#8A6508" stroke-width="1"/>' +
+  '<circle cx="8" cy="8" r="4.75" fill="none" stroke="#FFF1A8" stroke-opacity="0.6" stroke-width="1"/>' +
+  '</svg>'
+// At or above this share of the context window, remind the person to /compact.
+const COMPACT_AT = 60
+// Below this, after a /compact, the reminder may show again.
+const REMIND_AGAIN_BELOW = 50
+const RECEIPTS_KEPT = 30
 // The box is drawn no wider than this, however wide the band is.
 const BOX_COLUMNS = 84
 // One headline figure: a column of its own, so figures line up in any font.
@@ -39,6 +57,9 @@ const project = atom({ plugin: 'tuneup-dashboard', key: 'project' } as const, ze
 const all = atom({ plugin: 'tuneup-dashboard', key: 'all' } as const, zero())
 const tab = atom({ plugin: 'tuneup-dashboard', key: 'tab' } as const, 'session')
 const isOpen = atom({ plugin: 'tuneup-dashboard', key: 'isOpen' } as const, false)
+const receipts = atom({ plugin: 'tuneup-dashboard', key: 'receipts' } as const, [])
+const context = atom({ plugin: 'tuneup-dashboard', key: 'context' } as const, null)
+const isReminded = atom({ plugin: 'tuneup-dashboard', key: 'isReminded' } as const, false)
 
 // What this session used since the last write to the store.
 let pending = zero()
@@ -46,6 +67,15 @@ let writes: Promise<void> = Promise.resolve()
 // The main conversation's tokens and cost per turn still running, which its receipt reports.
 // `usd` is null once a request of the turn had no known rates.
 const turns = new Map<string, { tokens: Tokens; usd: number | null }>()
+
+// The Desktop app's SVG element, which draws the gold coin; undefined on a surface without it.
+function coinSvg($: EngineInterface, e: RenderInput): Elements['desktop']['Svg'] | undefined {
+  if (e.surface !== 'desktop') {
+    return undefined
+  }
+
+  return $.ui.resolve(e as RenderInput<RenderInput['component'], 'desktop'>).Svg
+}
 
 async function refresh($: EngineInterface) {
   const own = projectKey(await $.session.root())
@@ -108,7 +138,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'tokens',
-      description: 'Show or hide token use, cache share and cost above the prompt',
+      description: 'Show or hide Token info: token use, cache share, cost and context',
     })
     await restore($)
     await prune($)
@@ -177,15 +207,78 @@ export const register: Register = on => {
     }
     const line = receipt(e.durationMs, counted.tokens, counted.usd)
     const surfaces = await $.session.surfaces()
-    // Only the terminal draws a turn's returned text. The Desktop app draws its own
-    // footer, so the receipt goes there as a transcript line, which the model never reads.
-    if (surfaces.includes('desktop') && !surfaces.includes('terminal')) {
-      $.ui.log(line)
+    // The terminal and the Desktop app draw the receipt themselves, under the answer, with the coin.
+    if (surfaces.includes('terminal') || surfaces.includes('desktop')) {
+      const tail = tailOf(e.answer)
+      if (tail.length > 0) {
+        await update($, receipts, held => [...held, { tail, line }].slice(-RECEIPTS_KEPT))
+      }
 
       return result
     }
 
     return { ...result, text: result.text === e.answer ? line : `${result.text}\n${line}` }
+  })
+
+  on('session.measure', async ($, e, next) => {
+    const used = e.context.percent
+    if (used !== undefined) {
+      await update($, context, () => ({ percent: used, window: e.context.window }))
+      const wasReminded = await read($, isReminded)
+      if (used >= COMPACT_AT && !wasReminded) {
+        $.ui.toast(`Context is ${used}% full. Run /compact to keep replies fast and cheap.`, { timeoutMs: 10_000 })
+        await update($, isReminded, () => true)
+      } else if (used < REMIND_AGAIN_BELOW && wasReminded) {
+        await update($, isReminded, () => false)
+      }
+    }
+
+    return next(e)
+  })
+
+  // The receipt, under the answer it belongs to: a coin and the turn's figures, lit like
+  // moonlight under the pointer, and a click opens Token info above the prompt.
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    const theirs = await next(e)
+    const tail = tailOf(e.props.text)
+    if (e.props.isSummary || tail.length === 0) {
+      return theirs
+    }
+    const found = (await read($, receipts)).findLast(held => held.tail.endsWith(tail))
+    if (found === undefined) {
+      return theirs
+    }
+    const elements = $.ui.resolve(e)
+    // Only the terminal and the Desktop app draw a Client; elsewhere the answer is left as it is.
+    if (!('Client' in elements)) {
+      return theirs
+    }
+    const { Box, Client } = elements
+    const Svg = coinSvg($, e)
+    const props: ReceiptProps = { line: found.line, coin: Svg === undefined ? COIN_GLYPH : null, coinColor: GOLD }
+
+    // The receipt is a Client the mod draws itself: it fades its own colour in and out under the
+    // pointer and takes the click, with none of the chrome a Button gets in the Desktop app.
+    return (
+      <Box flexDirection="column">
+        {theirs}
+        <Box key={`receipt-${e.requestId}`} columnGap={1} alignItems="center">
+          {Svg !== undefined ? <Svg source={COIN_SVG} alt="Token info" width={14} height={14} /> : null}
+          <Client key={`glow-${e.requestId}`} module="./receipt.tsx" props={props} />
+        </Box>
+      </Box>
+    )
+  })
+
+  // A click on a receipt opens Token info above the prompt, and a second click closes it.
+  on('ui.message', async ($, e, next) => {
+    const data = e.data as { type?: unknown } | null
+    if (data?.type !== 'toggle-token-info') {
+      return next(e)
+    }
+    await update($, isOpen, shown => !shown)
+
+    return {}
   })
 
   on('command.run', { command: 'tokens' }, async $ => {
@@ -211,10 +304,12 @@ export const register: Register = on => {
       return next(e)
     }
     const { Box, Button, Text } = $.ui.resolve(e)
+    const Svg = coinSvg($, e)
     const active = await read($, tab)
     const shown = { session: await read($, session), project: await read($, project), all: await read($, all) }
     const totals = shown[active]
-    const { headline, detail } = card(totals)
+    const filled = await read($, context)
+    const { headline, detail, usage } = card(totals, filled)
     const isCached = cacheShare(sumTotals(totals)) >= GOOD_CACHE_SHARE
 
     return (
@@ -226,7 +321,8 @@ export const register: Register = on => {
         width={Math.min(e.props.bodyColumns, BOX_COLUMNS)}
       >
         <Box columnGap={3}>
-          <Text bold>Tokens</Text>
+          {Svg !== undefined ? <Svg source={COIN_SVG} alt="Token info" width={14} height={14} /> : <Text color={GOLD}>{COIN_GLYPH}</Text>}
+          <Text bold>Token info</Text>
           {TABS.map(one => (
             <Button
               key={one.id}
@@ -257,6 +353,18 @@ export const register: Register = on => {
             <Box key={`detail-${label}`} columnGap={1}>
               <Text dimColor>{label}</Text>
               <Text>{value}</Text>
+            </Box>
+          ))}
+        </Box>
+        <Box columnGap={3} flexWrap="wrap">
+          {usage.map(([label, value]) => (
+            <Box key={`usage-${label}`} columnGap={1}>
+              <Text dimColor>{label}</Text>
+              {label === 'Context used' && filled !== null && filled.percent >= COMPACT_AT ? (
+                <Text color="yellow">{`${value}, run /compact`}</Text>
+              ) : (
+                <Text>{value}</Text>
+              )}
             </Box>
           ))}
         </Box>

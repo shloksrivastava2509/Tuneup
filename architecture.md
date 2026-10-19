@@ -85,11 +85,13 @@ plugins/tuneup-dashboard/
 | `session.start` | Register `/tokens` command, load saved totals (a `$.state` write redraws its readers, so no timer) |
 | `classic.SessionStart` (`clear`, `resume`, `fork`) | Reload totals into `$.state` after resets |
 | `turn.step` | Async generator hook. Price each request from `hooks/rates.ts` by `result.usage.model`. Read `result.usage` (`input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`; may be `null`) per request; split by `e.agentId` |
-| `turn.complete` | `durationMs` for the turn receipt, with the tokens summed from that turn's own `turn.step` requests so the receipt and the box count the same thing, returned as `{ text }` (shown under the answer, not recorded in the transcript). Also fires for subagent runs: no receipt when `e.agentId` is set. Saves to `$.store` |
+| `turn.complete` | `durationMs` for the turn receipt (kept in `$.state` with the end of the answer it belongs to, and drawn by the `AssistantMessage` hook), with the tokens summed from that turn's own `turn.step` requests so the receipt and the box count the same thing, returned as `{ text }` (shown under the answer, not recorded in the transcript). Also fires for subagent runs: no receipt when `e.agentId` is set. Saves to `$.store` |
 | `session.end` | Save anything not yet written |
 | `classic.Notification` (`permission_prompt`, `idle_prompt`) | Start the "Claude waited for you" clock |
 | `prompt.submit` / `tool.check` resolving | Stop the waiting clock |
 | `command.run` (`tokens`) | Show or hide the box above the prompt and return `{}`: a command's `text` is read by the model, so text is returned only where nothing can draw |
+| `ui.render` (`AssistantMessage`) | Draw the receipt under the answer it belongs to: a gold coin and the turn's figures, lit pale blue-white under the pointer; a click toggles Token info. Matched by the answer's last 300 characters, whitespace collapsed |
+| `session.measure` | Context fill: shown in Token info, and a toast at 60% suggesting `/compact`, shown again only after the fill drops below 50% |
 | `ui.render` (`AbovePrompt`) | Draw the token box in the band above the prompt, when `/tokens` has turned it on; pass to `next(e)` otherwise and while a survey holds the band |
 
 ### State
@@ -106,10 +108,11 @@ Write each project/day under its own key and re-read before writing, because sev
 
 ### What the user sees
 
-- **`/tokens` box** – a small bordered card above the prompt, shown and hidden by `/tokens`. Tabs: This session · This project · All projects. Four headline figures (total tokens, share from cache, API-equivalent cost, turns), then the breakdown by token type and the subagent share. The cache share is green from 50% and yellow below.
+- **Token info box** – a small bordered card above the prompt, titled with the gold coin, shown and hidden by `/tokens` or by clicking a receipt. A third line gives tokens per turn and how full the context is. Tabs: This session · This project · All projects. Four headline figures (total tokens, share from cache, API-equivalent cost, turns), then the breakdown by token type and the subagent share. The cache share is green from 50% and yellow below.
 - **Sparkline** – tokens per day, last 14 days (`Raster`, terminal only; text in Desktop).
 - **Context band** above the prompt – context bar and a `/compact` hint past a threshold.
-- **Turn receipt** – "✓ Done in 42s  ·  18.4k tokens  ·  71% from cache  ·  $0.12". The cost is left off when the model has no known rates.
+- **Turn receipt** – under each answer, Claude Code's plugin-name label is replaced by our own row: a gold coin and "Done in 42s  ·  18.4k tokens  ·  71% from cache  ·  $0.12". The coin is drawn by the mod in gold (an SVG in the Desktop app, a gold `◉` in the terminal), not an emoji. The receipt is a `Client` region (`hooks/receipt.tsx`) the mod draws itself: under the pointer its text eases from dim grey to pale blue-white ("moonlight") over about 240 ms on the Client's frame clock, and fades back the same way; a click posts a message the hooks module answers; a click opens Token info. The cost is left off when the model has no known rates. Where nothing draws (`claude -p`, VS Code), the line is returned as `turn.complete` text instead.
+- **Compact reminder** – a toast when the context passes 60% full, suggesting `/compact`.
 - **Toasts** – daily budget thresholds the user set.
 
 ### Constraints
@@ -117,10 +120,9 @@ Write each project/day under its own key and re-read before writing, because sev
 - Read-only: no network, no file writes outside `$.store`, never adds to Claude's context.
 - Show the box only when `/tokens` asks for it. It is drawn in the band above the prompt, not a pane, so it has no width floor; Claude Code adds its own collapse mark beside it.
 - VS Code chat panel and `claude -p` run hooks but don't draw; fall back to the status line and receipt text.
-- **Turn receipt by surface** (checked 2026-10-11 on Claude Code 2.1.296):
-  - *Terminal:* the `{ text }` a `turn.complete` hook returns is drawn under the answer, next to the line that closes the turn.
-  - *Desktop app:* that text is not shown. This was observed in the Code tab; the docs don't state it. The API types give the likely reason: the turn-closing line (`TurnDuration`) is raised on the terminal only, and "a remote surface draws its own footer".
-  - *Fallback:* when `$.session.surfaces()` has `desktop` and no `terminal`, the mod sends the receipt with `$.ui.log`, a dim transcript line that is not sent to the model, and returns the answer unchanged. `turn.complete` has no `e.surface`, so the session's surfaces decide.
+- **Turn receipt by surface:** the text a `turn.complete` hook returns is drawn in the terminal only, with the plugin's name in front (checked 2026-10-11). So in the terminal and the Desktop app the mod draws the receipt itself, under the answer, through the `AssistantMessage` render site; elsewhere it falls back to `turn.complete` text.
+- Hover styles are pointer-only and draw no hook. Keyboard arrows don't reach transcript rows.
+- The Desktop app draws every `Button` as a native button, with its own hover box and focus ring, and the app applies `hover` styles at once with no easing. So the receipt is a `Client`, which gets pointer enter, leave and clicks and has a frame clock to animate with.
 - Each headline figure is a `Box` of fixed width. Never pad labels with spaces: the Desktop app's font is proportional.
 - Dollar figures are labeled "API-equivalent"; subscriptions aren't billed per token. They price all four token types from `hooks/rates.ts`, at the 5-minute cache write price. A model with no row there shows "—", and totals that mix priced and unpriced tokens are marked "(partial)".
 - "From cache" has one definition everywhere: `cache_read / (input + cache_read + cache_write)`.
@@ -144,6 +146,9 @@ Write each project/day under its own key and re-read before writing, because sev
 A weekly GitHub Action diffs the official Claude Code changelog and opens an issue per new feature; a maintainer decides whether it enters a profile.
 
 ## 5. Profiles
+
+**Token info** (`profiles/token-info.json`) is the first profile: it installs only the dashboard mod, writes no settings or `CLAUDE.md`, and adds no always-loaded context.
+
 
 `profiles/<name>.json` selects catalog entries and template variables. `settings` holds real `settings.json` keys and is merged as written:
 

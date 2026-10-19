@@ -1,0 +1,8 @@
+{
+  "id": "token-info",
+  "title": "Token info: token use, cache share, cost and context, inside Claude Code",
+  "match": {},
+  "features": ["dashboard-mod"],
+  "settings": {},
+  "mcp": []
+}

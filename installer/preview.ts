@@ -38,7 +38,7 @@ export const renderPreview = (plan: Plan): string => {
     out.push(`${change.before === null ? 'create' : 'change'} ${change.path}`, ...diffLines(change.before, change.after), '')
   }
   if (plan.changes.length === 0) {
-    out.push('No file changes: this project already matches the profile.', '')
+    out.push(plan.plugins.length > 0 ? 'No file changes.' : 'No file changes: this project already matches the profile.', '')
   }
   for (const plugin of plan.plugins) {
     out.push(`install plugin ${plugin} (project scope)`)

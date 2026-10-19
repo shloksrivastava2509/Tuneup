@@ -23,9 +23,9 @@ test('numbers read short', () => {
 
 test('from cache is cache read over the whole prompt, in the receipt too', () => {
   expect(micro(cacheShare(SEEN))).toBe(382_683)
-  expect(receipt(42_000, SEEN, 0.150488)).toBe('✓ Done in 42s  ·  86.1k tokens  ·  38% from cache  ·  $0.15')
-  expect(receipt(42_000, SEEN, null)).toBe('✓ Done in 42s  ·  86.1k tokens  ·  38% from cache')
-  expect(receipt(12_000, SEEN, 0.0033)).toBe('✓ Done in 12s  ·  86.1k tokens  ·  38% from cache  ·  $0.0033')
+  expect(receipt(42_000, SEEN, 0.150488)).toBe('Done in 42s  ·  86.1k tokens  ·  38% from cache  ·  $0.15')
+  expect(receipt(42_000, SEEN, null)).toBe('Done in 42s  ·  86.1k tokens  ·  38% from cache')
+  expect(receipt(12_000, SEEN, 0.0033)).toBe('Done in 12s  ·  86.1k tokens  ·  38% from cache  ·  $0.0033')
   expect(cacheShare({ input: 0, output: 5, cacheRead: 0, cacheWrite: 0 })).toBe(0)
 })
 

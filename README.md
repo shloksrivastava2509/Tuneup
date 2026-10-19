@@ -4,9 +4,9 @@
 
 Tuneup configures Claude Code for the work you actually do. A data scientist, a front-end developer and a back-end developer need different instructions, different skills and different tools connected. Tuneup gives each role a profile that sets those up in one command, and it only publishes a profile once a benchmark shows it beats plain Claude Code at little extra cost.
 
-It also ships a dashboard mod that shows token use, cache share and cost inside Claude Code, so the cost side of every profile is visible while you work.
+The first profile, **Token info**, is available now: a dashboard mod that shows token use, cache share, cost and context inside Claude Code, so the cost side of every profile is visible while you work.
 
-> **Status:** early development. The dashboard mod and the installer foundation work today. Role profiles are the next phase and are not yet available. The package is not on npm yet, so everything is installed from this repository.
+> **Status:** early development. The Token info profile and the installer foundation work today. Role profiles are the next phase and are not yet available. The package is not on npm yet, so everything is installed from this repository.
 
 ---
 
@@ -15,7 +15,7 @@ It also ships a dashboard mod that shows token use, cache share and cost inside 
 - [What Tuneup does](#what-tuneup-does)
 - [Role profiles (in development)](#role-profiles-in-development)
 - [How profiles are benchmarked](#how-profiles-are-benchmarked)
-- [Dashboard mod](#dashboard-mod)
+- [Token info profile](#token-info-profile)
 - [Installer](#installer)
 - [Repository layout](#repository-layout)
 - [Development](#development)
@@ -31,7 +31,7 @@ It also ships a dashboard mod that shows token use, cache share and cost inside 
 | --- | --- | --- |
 | **Role profiles** | A setup per role: a professional `CLAUDE.md`, role-specific skills, and connections to the tools that role uses every day | In development |
 | **Installer** | Previews, backs up and applies a profile to a project, and can undo it | Yes, with two starter profiles |
-| **Dashboard mod** | Token use, cache share and API-equivalent cost inside Claude Code, in the terminal and the Desktop app | Yes |
+| **Token info profile** | Token use, cache share, API-equivalent cost and context inside Claude Code, in the terminal and the Desktop app | Yes |
 
 Three principles run through all of it:
 
@@ -75,64 +75,19 @@ The exact task sets and scoring for each role are being designed and will be pub
 
 ---
 
-## Dashboard mod
+## Token info profile
 
-A [Claude Code mod](https://code.claude.com/docs/en/plugins/mods/overview) that shows what each turn and each session costs, without leaving Claude Code.
-
-### Turn receipt
-
-After every answer, a one-line receipt:
+Tuneup's first profile, available now. It adds a receipt under each answer and a compact token summary above the prompt, in the terminal and the Desktop app, and costs zero tokens to run.
 
 ```text
-✓ Done in 42s  ·  18.4k tokens  ·  71% from cache  ·  $0.12
+◉ Done in 42s  ·  18.4k tokens  ·  71% from cache  ·  $0.12
 ```
 
-In the terminal it appears under the answer. In the Desktop app it appears as a transcript line, because the Desktop app does not draw the text the terminal uses.
+- **Receipt** under every answer, marked with a gold coin. It glows softly under the pointer, and a click opens the Token info box.
+- **Token info box** above the prompt: total tokens, cache share, API-equivalent cost, turns, the four token types, and how full the context is, for this session, this project or all projects.
+- **Compact reminder** when the context passes 60% full.
 
-### The `/tokens` box
-
-`/tokens` shows or hides a small box above the prompt, with tabs for this session, this project and all projects:
-
-```text
-╭──────────────────────────────────────────────────────────────────────────╮
-│ Tokens   1: This session   2: This project   3: All projects             │
-│ Total tokens       From cache         API-equivalent cost  Turns         │
-│ 58.1k              77%                $0.10                1             │
-│ Input (uncached) 2   Output 1.2k   Cache read 44.1k   Cache write 12.9k  │
-╰──────────────────────────────────────────────────────────────────────────╯
-```
-
-- **Tabs:** type `1`, `2` or `3` into an empty prompt to switch.
-- **From cache** is `cache read ÷ (uncached input + cache read + cache write)`. It is green at 50% or more and yellow below, since a low share usually means the prompt cache is being missed.
-- **Subagent share** shows how much of the total came from subagents.
-
-### How costs are calculated
-
-- Each request is priced from its four token types (uncached input, output, cache read and cache write) at that model's published list price.
-- Prices live in one file, [`hooks/rates.ts`](plugins/tuneup-dashboard/hooks/rates.ts), with the date they were last checked.
-- A model with no known price (for example, a non-Anthropic model) shows `—` instead of a number, and totals that mix priced and unpriced models are marked "(partial)".
-- Figures are **API-equivalent** estimates. Pro and Max subscriptions are not billed per token.
-- Cache writes are priced at the 5-minute rate, because usage data does not say which cache lifetime a request used. Sessions on the 1-hour cache will show a slightly lower cost than they would be billed.
-
-### What the mod does not do
-
-- It makes **no network calls**.
-- It writes **only to its own store**, under `~/.claude/plugins/store/`.
-- It **adds nothing to Claude's context**, so it costs zero tokens to run.
-
-### Where it works
-
-| Where you run Claude Code | Receipt | `/tokens` box |
-| --- | --- | --- |
-| Terminal | Under the answer | Above the prompt |
-| Desktop app (Code tab) | As a transcript line | Above the prompt |
-| VS Code chat panel, `claude -p`, Agent SDK | Not shown | `/tokens` prints a text summary instead |
-
-Session totals survive the Desktop app restarting a conversation, and `/clear` starts them over.
-
-### Install
-
-Requires Claude Code v2.1.287 or later in the terminal, or v2.1.286 or later in the Desktop app.
+**Install in two commands:**
 
 ```bash
 claude plugin marketplace add shloksrivastava2509/Tuneup
@@ -142,13 +97,7 @@ claude plugin marketplace add shloksrivastava2509/Tuneup
 claude plugin install tuneup-dashboard@tuneup
 ```
 
-Start a new session, send a prompt, then type `/tokens`.
-
-To try it for one session without installing, clone this repository and run:
-
-```bash
-claude --plugin-dir ./plugins/tuneup-dashboard
-```
+Then start a new session. Full details, usage and troubleshooting: **[Token info README](plugins/tuneup-dashboard/README.md)**.
 
 ---
 
@@ -160,7 +109,7 @@ The installer applies a profile to the project you run it in.
 
 - **`.claude/settings.json`:** the profile's model, effort and safe permission rules, merged into what is already there. Existing keys are never removed, and lists such as permission rules are combined rather than replaced.
 - **`CLAUDE.md`:** a short block written between `<!-- tuneup:start -->` and `<!-- tuneup:end -->` markers. Nothing outside the markers is touched. If the project uses `AGENTS.md` and has no `CLAUDE.md`, no `CLAUDE.md` is created.
-- **The dashboard mod:** installed for the project, if your Claude Code version supports it.
+- **The Token info mod:** installed for the project, if your Claude Code version supports it.
 
 It writes only inside the current project. Your global `~/.claude` folder is read, never changed.
 
@@ -170,13 +119,14 @@ It writes only inside the current project. Your global `~/.claude` folder is rea
 2. **Backup.** Every file it will touch is copied to `~/.tuneup/backups/<timestamp>/`, with a manifest, before the first write.
 3. **Undo.** `undo` restores each file byte for byte, deletes files it created, and uninstalls the mod. If you edited a file after the install, your version is saved next to the backup before it is restored.
 
-### Starter profiles
+### Profiles available now
 
-These two profiles exist to test the installer. They will be replaced by role profiles.
+`token-info` is the first profile. The two `web-solo` profiles exist to test the installer and will be replaced by role profiles.
 
 | Profile | Model | Effort | Also adds |
 | --- | --- | --- | --- |
-| `web-solo-budget` | Sonnet | Medium | Safe git and test permissions, short `CLAUDE.md` block, dashboard mod |
+| `token-info` | Unchanged | Unchanged | The Token info mod only; no settings or `CLAUDE.md` changes |
+| `web-solo-budget` | Sonnet | Medium | Safe git and test permissions, short `CLAUDE.md` block, Token info mod |
 | `web-solo-speed` | Opus | High | Same as above |
 
 ### Run from a clone
@@ -223,7 +173,7 @@ Tuneup/
 ├── catalog/features.json          Features a profile can enable, each with a minimum Claude Code version
 ├── profiles/                      One JSON file per profile
 ├── templates/                     CLAUDE.md blocks and other files profiles copy
-├── plugins/tuneup-dashboard/      The dashboard mod
+├── plugins/tuneup-dashboard/      The Token info profile's mod, with its own README
 │   ├── hooks/register.tsx         Event hooks and the /tokens box
 │   ├── hooks/totals.ts, format.ts Token arithmetic and display text
 │   ├── hooks/rates.ts             Per-model prices and the date they were checked
@@ -295,7 +245,7 @@ See [`CLAUDE.md`](CLAUDE.md) for the project rules and [`architecture.md`](archi
 - Publish to npm, so the installer runs as `npx tuneup`
 - A short interview that picks the right role profile for you
 - `tuneup update`, to offer new Claude Code features as they ship
-- In the mod: waiting-time tracking, a context health indicator with a hint to compact, and a 14-day token history
+- In Token info: waiting-time tracking and a 14-day token history
 
 **Later**
 

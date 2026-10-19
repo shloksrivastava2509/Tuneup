@@ -8,7 +8,7 @@
     {
       "name": "tuneup-dashboard",
       "source": "./plugins/tuneup-dashboard",
-      "description": "Token usage per session and project, and turn receipts, inside Claude Code"
+      "description": "Token info: token use, cache share, cost and context inside Claude Code"
     }
   ]
 }

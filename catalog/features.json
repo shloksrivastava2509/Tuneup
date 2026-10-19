@@ -2,25 +2,42 @@
   {
     "id": "dashboard-mod",
     "minVersion": "2.1.287",
-    "profiles": ["*"],
-    "install": { "plugin": "tuneup-dashboard@tuneup" },
-    "why": "Token pane and turn receipts inside Claude Code"
+    "profiles": [
+      "*"
+    ],
+    "install": {
+      "plugin": "tuneup-dashboard@tuneup"
+    },
+    "why": "Token info: a receipt under each answer, and token use, cache share, cost and context above the prompt"
   },
   {
     "id": "lean-claude-md",
     "minVersion": "1.0.0",
-    "profiles": ["*"],
-    "install": { "claudeMd": "templates/CLAUDE.md" },
+    "profiles": [
+      "*"
+    ],
+    "install": {
+      "claudeMd": "templates/CLAUDE.md"
+    },
     "why": "A short CLAUDE.md block, so little context is loaded on every request"
   },
   {
     "id": "safe-allow-rules",
     "minVersion": "1.0.0",
-    "profiles": ["*"],
+    "profiles": [
+      "*"
+    ],
     "install": {
       "settings": {
         "permissions": {
-          "allow": ["Bash(git status)", "Bash(git diff *)", "Bash(git log *)", "Bash(npm test)", "Bash(npm run test *)", "Bash(npm run lint)"]
+          "allow": [
+            "Bash(git status)",
+            "Bash(git diff *)",
+            "Bash(git log *)",
+            "Bash(npm test)",
+            "Bash(npm run test *)",
+            "Bash(npm run lint)"
+          ]
         }
       }
     },

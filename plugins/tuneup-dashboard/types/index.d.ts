@@ -17,6 +17,12 @@ export type Totals = {
 
 export type Tab = 'session' | 'project' | 'all'
 
+// One turn's receipt, and the end of the answer it belongs under.
+export type Receipt = { tail: string; line: string }
+
+// How full the context window is, as Claude Code last measured it.
+export type Context = { percent: number; window: number }
+
 declare module 'claude-code' {
   interface PluginState {
     'tuneup-dashboard': {
@@ -24,8 +30,13 @@ declare module 'claude-code' {
       project: Totals
       all: Totals
       tab: Tab
-      // Whether the box above the prompt is shown.
+      // Whether the Token info box above the prompt is shown.
       isOpen: boolean
+      // This session's latest receipts, newest last.
+      receipts: Receipt[]
+      context: Context | null
+      // Whether the /compact reminder was shown since the context last dropped back.
+      isReminded: boolean
     }
   }
 }

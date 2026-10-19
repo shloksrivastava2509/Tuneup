@@ -1,4 +1,4 @@
-import type { Tokens, Totals } from '../types'
+import type { Context, Tokens, Totals } from '../types'
 import { cacheShare, subShare, sumTokens, sumTotals } from './totals'
 
 export const compact = (n: number): string => {
@@ -44,7 +44,7 @@ export const cost = (totals: Totals): string => {
 // The line under an answer. `spent` is the turn's cost, or null when its model has no known rates.
 export const receipt = (durationMs: number, tokens: Tokens, spent: number | null): string =>
   [
-    `✓ Done in ${duration(durationMs)}`,
+    `Done in ${duration(durationMs)}`,
     `${compact(sumTokens(tokens))} tokens`,
     `${percent(cacheShare(tokens))} from cache`,
     ...(spent === null ? [] : [usd(spent)]),
@@ -53,12 +53,13 @@ export const receipt = (durationMs: number, tokens: Tokens, spent: number | null
 export type Stat = [label: string, value: string]
 
 // What the box shows: the figures to read at a glance, then the breakdown behind them.
-export const card = (totals: Totals): { headline: Stat[]; detail: Stat[] } => {
+export const card = (totals: Totals, context: Context | null = null): { headline: Stat[]; detail: Stat[]; usage: Stat[] } => {
   const tokens = sumTotals(totals)
+  const total = sumTokens(tokens)
 
   return {
     headline: [
-      ['Total tokens', compact(sumTokens(tokens))],
+      ['Total tokens', compact(total)],
       ['From cache', percent(cacheShare(tokens))],
       ['API-equivalent cost', cost(totals)],
       ['Turns', String(totals.turns)],
@@ -70,8 +71,17 @@ export const card = (totals: Totals): { headline: Stat[]; detail: Stat[] } => {
       ['Cache write', compact(tokens.cacheWrite)],
       ['Subagents', percent(subShare(totals))],
     ],
+    usage: [
+      ['Per turn', totals.turns === 0 ? '—' : compact(total / totals.turns)],
+      ['Context used', context === null ? '—' : `${context.percent}% of ${compact(context.window)}`],
+    ],
   }
 }
+
+// The end of an answer, with runs of whitespace made one space: what a receipt is matched by.
+export const TAIL_LENGTH = 300
+
+export const tailOf = (text: string): string => text.replace(/\s+/g, ' ').trim().slice(-TAIL_LENGTH)
 
 export const summary = (title: string, totals: Totals): string => {
   const { headline, detail } = card(totals)

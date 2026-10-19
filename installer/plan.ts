@@ -54,7 +54,11 @@ export const buildPlan = ({ profile, resolved, files, templates }: PlanInput): P
     return after.length - (before?.length ?? 0)
   }
 
-  change(SETTINGS, mergeSettings(files[SETTINGS] ?? null, settings, SETTINGS))
+  // A profile with no settings leaves a project without a settings file alone.
+  const hasSettings = typeof settings === 'object' && settings !== null && Object.keys(settings).length > 0
+  if (hasSettings || (files[SETTINGS] ?? null) !== null) {
+    change(SETTINGS, mergeSettings(files[SETTINGS] ?? null, settings, SETTINGS))
+  }
   if (block !== null) {
     const hasClaudeMd = (files[CLAUDE_MD] ?? null) !== null
     if (!hasClaudeMd && (files[AGENTS_MD] ?? null) !== null) {

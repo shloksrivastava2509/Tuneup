@@ -11,7 +11,7 @@ Design details live in `architecture.md`. Read it before changing structure.
 
 - `installer/` – `bin.ts` (entry), `cli.ts` (flow), pure core (`merge.ts`, `catalog.ts`, `plan.ts`, `preview.ts`), I/O (`backup.ts`, `apply.ts`, `undo.ts`, `claude.ts`), tests beside them (`*.test.ts`)
 - `catalog/features.json` – version-gated list of Claude Code features the installer can enable
-- `profiles/` – one JSON file per profile (e.g. `web-solo-budget.json`)
+- `profiles/` – one JSON file per profile; `token-info.json` is the first role-independent profile (the dashboard mod alone)
 - `templates/` – CLAUDE.md, rules, agents and skills the installer copies
 - `plugins/tuneup-dashboard/` – the mod (`.claude-plugin/plugin.json`, `hooks/hooks.json`, `hooks/register.tsx`, `types/`, `tests/`)
 - `.claude-plugin/marketplace.json` – makes this repo a plugin marketplace
@@ -49,7 +49,9 @@ Design details live in `architecture.md`. Read it before changing structure.
 - `turn.step` hooks are async generators (`async function*`, `yield* next(e)`). Usage is on the result, snake_case (`cache_read_input_tokens`), and can be `null`.
 - `turn.step` and `turn.complete` also fire for subagents; check `e.agentId`.
 - A `command.run` answer's `text` is read by the model on its next turn. Return `{}` when the box can draw.
-- `turn.complete`'s returned `text` is drawn in the terminal only. In the Desktop app send the line with `$.ui.log` instead (see architecture.md, "Turn receipt by surface").
+- `turn.complete`'s returned `text` is drawn in the terminal only, behind the plugin's name. The mod draws its receipt itself through `ui.render` on `AssistantMessage`, wrapping `await next(e)`, and returns text only where nothing draws.
+- Hover styles (`hover` on a keyed `Box`, `Button` or `Text`) are kept beside an element's props in the drawn tree, not in `props`: test them through `ui.drawn()`.
+- The Desktop app draws a `Button` as a native button with its own hover box and focus ring, and `hover` styles switch at once. For a glow or any animation, draw a `Client` (a surface module such as `hooks/receipt.tsx`): it gets pointer events and a frame clock, and reaches the hooks module with `surface.post`, answered by a `ui.message` hook. In tests drive it with `ui.pointer`, `ui.advance` and `ui.drawn({ in: key })`.
 - Align columns with a fixed-`width` `Box`, never with padded spaces: the Desktop app's font is proportional.
 - `Raster` is terminal-only: check `e.surface` and fall back to text.
 - The token box is drawn in the `AbovePrompt` band, which every mod shares: return `next(e)` when the box is hidden or `e.props.hasSurvey` is true, and size it to `e.props.bodyColumns`.

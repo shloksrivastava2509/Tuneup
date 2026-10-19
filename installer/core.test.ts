@@ -9,7 +9,7 @@ import { diffLines } from './preview.js'
 
 const root = packageRoot()
 const catalog = loadCatalog(root)
-const [budget] = loadProfiles(root)
+const budget = loadProfiles(root).find(profile => profile.id === 'web-solo-budget')
 assert.ok(budget)
 const templates = { 'templates/CLAUDE.md': '## Tuneup\n\n- one\n' }
 const planFor = (files: { [path: string]: string | null }, version = '2.1.296') =>
@@ -60,7 +60,7 @@ test('every catalog entry has a minVersion and every profile resolves', () => {
     assert.match(feature.minVersion, /^\d+\.\d+\.\d+$/)
   }
   const profiles = loadProfiles(root)
-  assert.deepEqual(profiles.map(profile => profile.id), ['web-solo-budget', 'web-solo-speed'])
+  assert.deepEqual(profiles.map(profile => profile.id), ['token-info', 'web-solo-budget', 'web-solo-speed'])
   for (const profile of profiles) {
     assert.equal(resolveFeatures(profile, catalog, '2.1.296').skipped.length, 0)
   }
@@ -102,4 +102,14 @@ test('planning twice changes nothing the second time', () => {
 test('the diff marks added and removed lines', () => {
   assert.deepEqual(diffLines('a\nb\nc\n', 'a\nx\nc\nd\n'), ['  a', '- b', '+ x', '  c', '+ d'])
   assert.deepEqual(diffLines(null, 'a\n'), ['+ a'])
+})
+
+test('the Token info profile installs only the mod, and creates no settings file', () => {
+  const tokenInfo = loadProfiles(root).find(profile => profile.id === 'token-info')
+  assert.ok(tokenInfo)
+  const plan = buildPlan({ profile: tokenInfo, resolved: resolveFeatures(tokenInfo, catalog, '2.1.296'), files: {}, templates })
+
+  assert.deepEqual(plan.changes, [])
+  assert.deepEqual(plan.plugins, ['tuneup-dashboard@tuneup'])
+  assert.equal(plan.alwaysLoadedChars, 0)
 })

@@ -1,7 +1,7 @@
 {
   "name": "tuneup-dashboard",
-  "version": "0.2.0",
-  "description": "Token usage per session and project, and turn receipts, inside Claude Code",
+  "version": "0.4.0",
+  "description": "Token info: a receipt under each answer, token use, cache share, cost and context above the prompt, and a reminder to /compact",
   "types": "./types/index.d.ts",
   "author": {
     "name": "Tuneup contributors"

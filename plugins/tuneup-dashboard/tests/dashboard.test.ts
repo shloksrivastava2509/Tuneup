@@ -38,10 +38,12 @@ type World = {
   logs?: string[]
   // When the session first started, which names its saved totals.
   startedAt?: () => number
+  // Collects the toasts the mod shows.
+  toasts?: string[]
 }
 
 // The engine beneath the mod: each call the mod makes is answered from here.
-const world = (on: On, { entries = {}, model = 'claude-sonnet-5-5', surfaces = ['terminal'], logs = [], startedAt = () => STARTED }: World = {}) => {
+const world = (on: On, { entries = {}, model = 'claude-sonnet-5-5', surfaces = ['terminal'], logs = [], startedAt = () => STARTED, toasts = [] }: World = {}) => {
   // A store of the test's own, so a test reads and writes it as another session would.
   const store = new Map<string, unknown>(Object.entries(entries))
   on('store.get', (_, e) => ({ value: store.get(e.key) }))
@@ -68,6 +70,18 @@ const world = (on: On, { entries = {}, model = 'claude-sonnet-5-5', surfaces = [
     return { value: undefined }
   })
   on('ui.invalidate', () => ({ value: undefined }))
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+
+    return { value: undefined }
+  })
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  // Claude Code's own drawing of an answer.
+  on('ui.render', { component: 'AssistantMessage' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+
+    return Text({ children: [e.props.text] })
+  })
   // What the band holds when no mod draws in it.
   on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
     const { Box } = $.ui.resolve(e)
@@ -121,49 +135,196 @@ const shows = async ($: Engine, surface: 'terminal' | 'desktop', value: string) 
   return found !== undefined
 }
 
-const RECEIPT = '✓ Done in 42s  ·  86.1k tokens  ·  38% from cache  ·  $0.15'
+const RECEIPT = 'Done in 42s  ·  86.1k tokens  ·  38% from cache  ·  $0.15'
+// The terminal's coin: a gold disc. The Desktop app draws an SVG coin instead.
+const COIN = '\u25C9'
 
-test('in the terminal the receipt is the text under the answer, and nothing is logged', async ($, on) => {
-  const logs: string[] = []
-  world(on, { surfaces: ['terminal'], logs })
-  await start($)
-  await step($)
+// Claude Code drawing an answer whose text is `text`, on that surface.
+const answer = ($: Engine, surface: 'terminal' | 'desktop', text = 'ok', requestId = 'm1') =>
+  $.ui.mount({ plugin: 'tuneup-dashboard', component: 'AssistantMessage', surface, requestId, props: { text, isFirstOfReply: true } })
 
-  // 32,300 / (4 + 32,300 + 52,100) = 38%; 4 x $2 + 1,700 x $10 + 32,300 x $0.10 + 52,100 x $2.50 = $0.15
-  expect((await complete($)).text).toBe(RECEIPT)
-  expect(logs).toEqual([])
-})
+// Every Text a drawn tree holds, in order, with its colour.
+const textsOf = (node: unknown): { text: string; color: unknown }[] => {
+  if (typeof node !== 'object' || node === null) {
+    return []
+  }
+  const drawn = node as { type?: string; props?: { color?: unknown }; children?: unknown[] }
+  const own = drawn.type === 'Text' ? [{ text: (drawn.children ?? []).filter(child => typeof child === 'string').join(''), color: drawn.props?.color }] : []
 
-test('in the Desktop app the receipt is a transcript line, and the answer is left as it was', async ($, on) => {
-  const logs: string[] = []
-  world(on, { surfaces: ['desktop'], logs })
-  await start($)
-  await step($)
+  return [...own, ...(drawn.children ?? []).flatMap(textsOf)]
+}
 
-  expect((await complete($)).text).toBe('ok')
-  expect(logs).toEqual([RECEIPT])
-})
+type Mounted = Awaited<ReturnType<typeof answer>>
 
-test('a session drawn in both shows the receipt once, in the terminal', async ($, on) => {
+// The receipt drawn under an answer: what its Client shows, or undefined where there is none.
+const receiptOf = async (ui: Mounted, id = 'm1') => {
+  try {
+    return textsOf(await ui.drawn({ in: `glow-${id}` }))
+  } catch {
+    return undefined
+  }
+}
+
+// The colour the receipt's line is drawn in right now.
+const lineColour = async (ui: Mounted, id = 'm1') => (await receiptOf(ui, id))?.find(text => text.text.startsWith('Done'))?.color
+
+const measure = ($: Engine, percent: number) =>
+  $.session.measure({ context: { window: 200_000, tokens: percent * 2000, percent }, rateLimits: [], changed: ['context'] })
+
+test('the receipt is drawn under its answer with a gold coin, not the plugin name, on both surfaces', async ($, on) => {
   const logs: string[] = []
   world(on, { surfaces: ['terminal', 'desktop'], logs })
   await start($)
   await step($)
 
-  expect((await complete($)).text).toBe(RECEIPT)
+  // 32,300 / (4 + 32,300 + 52,100) = 38%; 4 x $2 + 1,700 x $10 + 32,300 x $0.10 + 52,100 x $2.50 = $0.15
+  expect((await complete($)).text).toBe('ok')
   expect(logs).toEqual([])
+  for (const surface of SURFACES) {
+    const ui = await answer($, surface)
+    const texts = await receiptOf(ui)
+    expect(texts?.map(text => text.text).join(' '), surface).toContain(RECEIPT)
+    // No emoji: the coin is drawn by the mod, in gold, and there is no button to draw a box.
+    expect(JSON.stringify(texts), surface).not.toContain('\u{1FA99}')
+    expect(await ui.find({ type: 'Button' }), surface).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'ok' }), surface).toBeDefined()
+    if (surface === 'desktop') {
+      const svg = await ui.find({ type: 'Svg' })
+      expect(svg?.props).toMatchObject({ alt: 'Token info', width: 14, height: 14 })
+      expect(String(svg?.props.source)).toContain('#E8B923')
+    } else {
+      expect(texts?.[0]).toEqual({ text: COIN, color: '#E8B923' })
+    }
+    await ui.unmount()
+  }
 })
 
-test("a subagent's turn and an interrupted turn get no receipt, on either surface", async ($, on) => {
-  const logs: string[] = []
-  world(on, { surfaces: ['desktop'], logs })
+test('under the pointer the receipt glows in gradually, and fades out the same way', async ($, on) => {
+  world(on)
+  await start($)
+  await step($)
+  await complete($)
+
+  for (const surface of SURFACES) {
+    const ui = await answer($, surface)
+    expect(await lineColour(ui), surface).toBe('#8b9099')
+
+    await ui.pointer({ type: 'enter', x: 3, y: 0, in: 'glow-m1' })
+    await ui.advance(80)
+    const rising = await lineColour(ui)
+    expect(rising, surface).not.toBe('#8b9099')
+    expect(rising, surface).not.toBe('#eaf0ff')
+
+    await ui.advance(400)
+    expect(await lineColour(ui), surface).toBe('#eaf0ff')
+
+    await ui.pointer({ type: 'leave', x: 3, y: 0, in: 'glow-m1' })
+    await ui.advance(80)
+    expect(await lineColour(ui), surface).not.toBe('#eaf0ff')
+    await ui.advance(400)
+    expect(await lineColour(ui), surface).toBe('#8b9099')
+    await ui.unmount()
+  }
+})
+
+test('another answer gets no receipt', async ($, on) => {
+  world(on)
+  await start($)
+  await step($)
+  await complete($)
+
+  const ui = await answer($, 'terminal', 'Something else entirely.', 'm2')
+  expect(await receiptOf(ui, 'm2')).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a long answer is matched by its end, whatever its line breaks', async ($, on) => {
+  world(on)
+  await start($)
+  await step($)
+  const long = `${'word '.repeat(200)}and the\nlast   line.`
+  await $.turn.complete({ answer: long, durationMs: 42_000, isAborted: false, turnId: 't1', reason: 'answer', usage: { ...USAGE, model: 'claude-sonnet-5-5' } })
+
+  const ui = await answer($, 'desktop', long.replace(/\n/g, '\n\n'), 'm3')
+  expect(await receiptOf(ui, 'm3')).toBeDefined()
+  await ui.unmount()
+})
+
+test('clicking the receipt opens Token info above the prompt, and clicking again closes it', async ($, on) => {
+  world(on)
+  await start($)
+  await step($)
+  await complete($)
+
+  for (const surface of SURFACES) {
+    const row = await answer($, surface)
+    await row.pointer({ type: 'down', x: 3, y: 0, button: 'left', in: 'glow-m1' })
+    await row.pointer({ type: 'up', x: 3, y: 0, button: 'left', in: 'glow-m1' })
+    await row.unmount()
+    const ui = await band($, surface)
+    expect(await ui.find({ key: 'tokens' }), surface).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Token info' }), surface).toBeDefined()
+    await ui.unmount()
+
+    const again = await answer($, surface)
+    await again.pointer({ type: 'down', x: 3, y: 0, button: 'left', in: 'glow-m1' })
+    await again.pointer({ type: 'up', x: 3, y: 0, button: 'left', in: 'glow-m1' })
+    await again.unmount()
+    const closed = await band($, surface)
+    expect(await closed.find({ key: 'tokens' }), surface).toBeUndefined()
+    await closed.unmount()
+  }
+})
+
+test('where nothing draws, the receipt is the text under the answer', async ($, on) => {
+  world(on, { surfaces: [] })
+  await start($)
+  await step($)
+
+  expect((await complete($)).text).toBe(RECEIPT)
+})
+
+test("a subagent's turn and an interrupted turn get no receipt", async ($, on) => {
+  world(on)
+  await start($)
+  await complete($, 'agent-1')
+  await $.turn.complete({ answer: '', durationMs: 5, isAborted: true, turnId: 't2', reason: 'aborted' })
+
+  const ui = await answer($, 'terminal')
+  expect(await receiptOf(ui)).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a toast reminds to /compact once the context passes 60%, once per filling', async ($, on) => {
+  const toasts: string[] = []
+  world(on, { toasts })
   await start($)
 
-  expect((await complete($, 'agent-1')).text).toBe('ok')
-  expect(
-    (await $.turn.complete({ answer: '', durationMs: 5, isAborted: true, turnId: 't2', reason: 'aborted' })).text,
-  ).toBe('')
-  expect(logs).toEqual([])
+  await measure($, 55)
+  expect(toasts).toEqual([])
+  await measure($, 62)
+  expect(toasts).toEqual(['Context is 62% full. Run /compact to keep replies fast and cheap.'])
+  await measure($, 75)
+  expect(toasts.length).toBe(1)
+
+  // After /compact the context drops, and the next filling reminds again.
+  await measure($, 20)
+  await measure($, 64)
+  expect(toasts.length).toBe(2)
+})
+
+test('Token info shows how full the context is, and flags it past 60%', async ($, on) => {
+  world(on)
+  await start($)
+  await step($)
+  await complete($)
+  await tokens($)
+
+  await measure($, 41)
+  expect(await shows($, 'terminal', '41% of 200.0k')).toBe(true)
+  expect(await shows($, 'terminal', '86.1k')).toBe(true)
+  await measure($, 63)
+  expect(await shows($, 'desktop', '63% of 200.0k, run /compact')).toBe(true)
 })
 
 test('a model with unknown rates gets a receipt without a cost and a dash in the box', async ($, on) => {
@@ -171,7 +332,10 @@ test('a model with unknown rates gets a receipt without a cost and a dash in the
   await start($)
   await step($)
 
-  expect((await complete($)).text).toBe('✓ Done in 42s  ·  86.1k tokens  ·  38% from cache')
+  await complete($)
+  const row = await answer($, 'terminal')
+  expect((await receiptOf(row))?.map(text => text.text)).toEqual([COIN, 'Done in 42s  ·  86.1k tokens  ·  38% from cache'])
+  await row.unmount()
   const project = stored(store, `project:${ROOT}`)
   expect(project.usd).toBe(0)
   expect(project.unpriced).toBe(86_104)
