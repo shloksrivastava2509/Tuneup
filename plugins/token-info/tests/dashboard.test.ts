@@ -19,7 +19,7 @@ const STARTED = 1_791_716_185_546
 
 // Dollars as whole millionths, so sums of fractions compare exactly.
 const micro = (dollars: number | null): number => Math.round((dollars ?? Number.NaN) * 1_000_000)
-const BAND = { plugin: 'tuneup-dashboard', component: 'AbovePrompt' } as const
+const BAND = { plugin: 'token-info', component: 'AbovePrompt' } as const
 const PROPS = {
   hasSurvey: false,
   isWorking: false,
@@ -141,7 +141,7 @@ const COIN = '\u25C9'
 
 // Claude Code drawing an answer whose text is `text`, on that surface.
 const answer = ($: Engine, surface: 'terminal' | 'desktop', text = 'ok', requestId = 'm1') =>
-  $.ui.mount({ plugin: 'tuneup-dashboard', component: 'AssistantMessage', surface, requestId, props: { text, isFirstOfReply: true } })
+  $.ui.mount({ plugin: 'token-info', component: 'AssistantMessage', surface, requestId, props: { text, isFirstOfReply: true } })
 
 // Every Text a drawn tree holds, in order, with its colour.
 const textsOf = (node: unknown): { text: string; color: unknown }[] => {

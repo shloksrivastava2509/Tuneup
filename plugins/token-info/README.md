@@ -21,14 +21,14 @@ claude plugin marketplace add shloksrivastava2509/Tuneup
 **2. Install Token info**
 
 ```bash
-claude plugin install tuneup-dashboard@tuneup
+claude plugin install token-info@tuneup
 ```
 
 **3. Start a new session**
 
 Open a new Claude Code session in the terminal, or click **+ New** in the Desktop app's Code tab. Send any prompt, and the receipt appears under the answer.
 
-> **Prefer to stay inside Claude Code?** Run `/plugin marketplace add shloksrivastava2509/Tuneup`, then `/plugin install tuneup-dashboard@tuneup`, then `/reload-plugins`.
+> **Prefer to stay inside Claude Code?** Run `/plugin marketplace add shloksrivastava2509/Tuneup`, then `/plugin install token-info@tuneup`, then `/reload-plugins`.
 
 ---
 
@@ -118,13 +118,19 @@ When the context window passes **60% full**, a short notice suggests running `/c
 Update to the latest version, then start a new session:
 
 ```bash
-claude plugin update tuneup-dashboard@tuneup
+claude plugin update token-info@tuneup
+```
+
+If you installed it before it was renamed, under the name `tuneup-dashboard`, swap the old install for the new one:
+
+```bash
+claude plugin uninstall tuneup-dashboard@tuneup && claude plugin marketplace update tuneup && claude plugin install token-info@tuneup
 ```
 
 Remove it:
 
 ```bash
-claude plugin uninstall tuneup-dashboard@tuneup
+claude plugin uninstall token-info@tuneup
 ```
 
 ---
@@ -134,9 +140,9 @@ claude plugin uninstall tuneup-dashboard@tuneup
 | Problem | Fix |
 | --- | --- |
 | No receipt under answers | Start a new session: a session that was already open keeps the version it started with. Then check `claude --version` is 2.1.287 or later. |
-| `/tokens` is not a command | Run `claude plugin list` and check `tuneup-dashboard@tuneup` is enabled. |
+| `/tokens` is not a command | Run `claude plugin list` and check `token-info@tuneup` is enabled. |
 | Cost shows `—` | The model has no published Anthropic price, so its cost is not estimated. |
-| Receipt shows twice | Two copies are loaded, usually an installed copy plus a development copy. Disable one with `claude plugin disable tuneup-dashboard@tuneup`. |
+| Receipt shows twice | Two copies are loaded, usually an installed copy plus a development copy. Disable one with `claude plugin disable token-info@tuneup`. |
 
 ---
 

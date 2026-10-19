@@ -52,14 +52,14 @@ const TABS: { id: Tab; label: string; hotkey: string }[] = [
   { id: 'all', label: 'All projects', hotkey: '3' },
 ]
 
-const session = atom({ plugin: 'tuneup-dashboard', key: 'session' } as const, zero())
-const project = atom({ plugin: 'tuneup-dashboard', key: 'project' } as const, zero())
-const all = atom({ plugin: 'tuneup-dashboard', key: 'all' } as const, zero())
-const tab = atom({ plugin: 'tuneup-dashboard', key: 'tab' } as const, 'session')
-const isOpen = atom({ plugin: 'tuneup-dashboard', key: 'isOpen' } as const, false)
-const receipts = atom({ plugin: 'tuneup-dashboard', key: 'receipts' } as const, [])
-const context = atom({ plugin: 'tuneup-dashboard', key: 'context' } as const, null)
-const isReminded = atom({ plugin: 'tuneup-dashboard', key: 'isReminded' } as const, false)
+const session = atom({ plugin: 'token-info', key: 'session' } as const, zero())
+const project = atom({ plugin: 'token-info', key: 'project' } as const, zero())
+const all = atom({ plugin: 'token-info', key: 'all' } as const, zero())
+const tab = atom({ plugin: 'token-info', key: 'tab' } as const, 'session')
+const isOpen = atom({ plugin: 'token-info', key: 'isOpen' } as const, false)
+const receipts = atom({ plugin: 'token-info', key: 'receipts' } as const, [])
+const context = atom({ plugin: 'token-info', key: 'context' } as const, null)
+const isReminded = atom({ plugin: 'token-info', key: 'isReminded' } as const, false)
 
 // What this session used since the last write to the store.
 let pending = zero()

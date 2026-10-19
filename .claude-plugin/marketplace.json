@@ -1,13 +1,13 @@
 {
   "name": "tuneup",
-  "description": "Tuneup: lean Claude Code setup and a token dashboard mod",
+  "description": "Tuneup: role-specific setups for Claude Code. First profile: Token info.",
   "owner": {
     "name": "Tuneup contributors"
   },
   "plugins": [
     {
-      "name": "tuneup-dashboard",
-      "source": "./plugins/tuneup-dashboard",
+      "name": "token-info",
+      "source": "./plugins/token-info",
       "description": "Token info: token use, cache share, cost and context inside Claude Code"
     }
   ]

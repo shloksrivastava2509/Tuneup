@@ -81,7 +81,7 @@ test('a fresh project gets settings, a CLAUDE.md block and the plugin', () => {
     ['CLAUDE.md', null],
   ])
   assert.equal(JSON.parse(plan.changes[0]!.after).model, 'sonnet')
-  assert.deepEqual(plan.plugins, ['tuneup-dashboard@tuneup'])
+  assert.deepEqual(plan.plugins, ['token-info@tuneup'])
   assert.equal(plan.alwaysLoadedChars, plan.changes[1]!.after.length)
 })
 
@@ -110,6 +110,6 @@ test('the Token info profile installs only the mod, and creates no settings file
   const plan = buildPlan({ profile: tokenInfo, resolved: resolveFeatures(tokenInfo, catalog, '2.1.296'), files: {}, templates })
 
   assert.deepEqual(plan.changes, [])
-  assert.deepEqual(plan.plugins, ['tuneup-dashboard@tuneup'])
+  assert.deepEqual(plan.plugins, ['token-info@tuneup'])
   assert.equal(plan.alwaysLoadedChars, 0)
 })

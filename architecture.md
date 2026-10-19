@@ -28,7 +28,7 @@ Distributed as an npm package so `npx tuneup` works on macOS, Linux and Windows.
 4. **Resolve features** – filter `catalog/features.json` by the profile and the installed Claude Code version.
 5. **Preview** – show a diff of every file to be created or changed, plus an estimate of always-loaded context added.
 6. **Back up and merge** – copy touched files to `~/.tuneup/backups/<timestamp>/`, then merge.
-7. **Install the plugin** – add this repo as a marketplace and install `tuneup-dashboard@tuneup`.
+7. **Install the plugin** – add this repo as a marketplace and install `token-info@tuneup`.
 8. **Verify** – run `claude plugin validate`; suggest `/doctor` in the first session.
 
 ### Commands
@@ -68,7 +68,7 @@ A Claude Code mod (plugin with JS/TS function hooks). Requires Claude Code v2.1.
 ### Files
 
 ```text
-plugins/tuneup-dashboard/
+plugins/token-info/
 ├── .claude-plugin/plugin.json   # names the state contract: "types": "./types/index.d.ts"
 ├── hooks/hooks.json             # { "modules": ["./register.tsx"] }, loaded as-is, no build step
 ├── hooks/register.tsx           # hook wiring
@@ -136,7 +136,7 @@ Write each project/day under its own key and re-read before writing, because sev
   "id": "dashboard-mod",
   "minVersion": "2.1.287",
   "profiles": ["*"],
-  "install": { "plugin": "tuneup-dashboard@tuneup" },
+  "install": { "plugin": "token-info@tuneup" },
   "why": "Token box and waiting timer inside Claude Code"
 }
 ```
@@ -171,7 +171,7 @@ tuneup/
 ├── catalog/features.json
 ├── profiles/
 ├── templates/
-├── plugins/tuneup-dashboard/
+├── plugins/token-info/
 ├── .claude-plugin/marketplace.json
 ├── .github/workflows/
 ├── CLAUDE.md

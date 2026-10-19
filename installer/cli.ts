@@ -135,7 +135,7 @@ const runInstall = async (flags: { profile?: string; dryRun: boolean; yes: boole
     now: deps.now(),
   })
   if (done.manifest.plugins.some(plugin => plugin.installed)) {
-    const checked = run(['plugin', 'validate', join(root, 'plugins', 'tuneup-dashboard')], cwd)
+    const checked = run(['plugin', 'validate', join(root, 'plugins', 'token-info')], cwd)
     if (!checked.ok) {
       done.warnings.push(`claude plugin validate reported a problem:\n${checked.output}`)
     }

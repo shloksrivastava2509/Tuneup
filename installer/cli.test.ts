@@ -81,15 +81,15 @@ test('install then undo leaves an existing project byte for byte as it was', asy
   assert.equal(settings.effortLevel, 'high')
   assert.ok(settings.permissions.allow.includes('Bash(ls)'))
   assert.ok(settings.permissions.allow.includes('Bash(git status)'))
-  assert.deepEqual(settings.enabledPlugins, { 'tuneup-dashboard@tuneup': true })
+  assert.deepEqual(settings.enabledPlugins, { 'token-info@tuneup': true })
   assert.ok(box.text('CLAUDE.md').startsWith('# Mine\r\n\r\nNotes with CRLF.\r\n'))
   assert.match(box.text('CLAUDE.md'), /<!-- tuneup:start -->\r\n[\s\S]+<!-- tuneup:end -->\r\n$/)
   assert.ok(box.calls.some(call => call.startsWith('plugin marketplace add ') && call.endsWith('--scope project')))
-  assert.ok(box.calls.includes('plugin install tuneup-dashboard@tuneup --scope project'))
+  assert.ok(box.calls.includes('plugin install token-info@tuneup --scope project'))
 
   assert.equal(await main(['undo'], box.deps), 0)
   assert.deepEqual(box.snapshot(), before)
-  assert.ok(box.calls.includes('plugin uninstall tuneup-dashboard@tuneup --scope project'))
+  assert.ok(box.calls.includes('plugin uninstall token-info@tuneup --scope project'))
   assert.doesNotMatch(box.lines.join('\n'), /edited after tuneup ran/)
 
   assert.equal(await main(['undo'], box.deps), 1)

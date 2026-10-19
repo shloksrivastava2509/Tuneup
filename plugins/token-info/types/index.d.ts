@@ -25,7 +25,7 @@ export type Context = { percent: number; window: number }
 
 declare module 'claude-code' {
   interface PluginState {
-    'tuneup-dashboard': {
+    'token-info': {
       session: Totals
       project: Totals
       all: Totals

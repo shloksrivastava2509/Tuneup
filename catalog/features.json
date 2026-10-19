@@ -6,7 +6,7 @@
       "*"
     ],
     "install": {
-      "plugin": "tuneup-dashboard@tuneup"
+      "plugin": "token-info@tuneup"
     },
     "why": "Token info: a receipt under each answer, and token use, cache share, cost and context above the prompt"
   },

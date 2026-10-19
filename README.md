@@ -94,10 +94,10 @@ claude plugin marketplace add shloksrivastava2509/Tuneup
 ```
 
 ```bash
-claude plugin install tuneup-dashboard@tuneup
+claude plugin install token-info@tuneup
 ```
 
-Then start a new session. Full details, usage and troubleshooting: **[Token info README](plugins/tuneup-dashboard/README.md)**.
+Then start a new session. Full details, usage and troubleshooting: **[Token info README](plugins/token-info/README.md)**.
 
 ---
 
@@ -173,7 +173,7 @@ Tuneup/
 ├── catalog/features.json          Features a profile can enable, each with a minimum Claude Code version
 ├── profiles/                      One JSON file per profile
 ├── templates/                     CLAUDE.md blocks and other files profiles copy
-├── plugins/tuneup-dashboard/      The Token info profile's mod, with its own README
+├── plugins/token-info/      The Token info profile's mod, with its own README
 │   ├── hooks/register.tsx         Event hooks and the /tokens box
 │   ├── hooks/totals.ts, format.ts Token arithmetic and display text
 │   ├── hooks/rates.ts             Per-model prices and the date they were checked
@@ -208,7 +208,7 @@ An installed mod runs from a frozen, versioned copy, so edits don't reach it unt
 For one terminal session, which reloads when you save:
 
 ```bash
-claude --plugin-dir ./plugins/tuneup-dashboard
+claude --plugin-dir ./plugins/token-info
 ```
 
 For every session, including the Desktop app, add these under `env` in `~/.claude/settings.json`, and disable the installed copy so two copies don't both run:
@@ -216,17 +216,17 @@ For every session, including the Desktop app, add these under `env` in `~/.claud
 ```json
 {
   "env": {
-    "CLAUDE_CODE_PLUGIN_DIRS": "/absolute/path/to/Tuneup/plugins/tuneup-dashboard",
+    "CLAUDE_CODE_PLUGIN_DIRS": "/absolute/path/to/Tuneup/plugins/token-info",
     "CLAUDE_CODE_PLUGIN_DIR_WATCH": "1"
   }
 }
 ```
 
 ```bash
-claude plugin disable tuneup-dashboard@tuneup
+claude plugin disable token-info@tuneup
 ```
 
-When releasing a change to the mod, bump `version` in `plugins/tuneup-dashboard/.claude-plugin/plugin.json`.
+When releasing a change to the mod, bump `version` in `plugins/token-info/.claude-plugin/plugin.json`.
 
 See [`CLAUDE.md`](CLAUDE.md) for the project rules and [`architecture.md`](architecture.md) for the design.
 
